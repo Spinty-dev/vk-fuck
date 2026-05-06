@@ -1,0 +1,34 @@
+[Unit]
+Description=vkturn privileged helper (TUN + sing-box supervisor)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/vkturn/vkturnd -socket /run/vkturn/control.sock -group vkturn
+Restart=on-failure
+RestartSec=3
+Group=vkturn
+
+# Help find sing-box even with sandboxing (fallback if not staged next to binary)
+Environment="SINGBOX_BINARY=/usr/lib/vkturn/sing-box"
+Environment="VKTURN_CLIENT=/usr/lib/vkturn/vkturn-client"
+
+# Needs CAP_NET_ADMIN to create TUN devices and CAP_NET_RAW for some
+# sing-box outbounds. No extra capabilities are granted.
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+NoNewPrivileges=true
+
+# /run/vkturn holds the control socket; /var/lib/vkturn is the config stage.
+RuntimeDirectory=vkturn
+RuntimeDirectoryMode=0755
+StateDirectory=vkturn
+StateDirectoryMode=0750
+
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/vkturn
+
+[Install]
+WantedBy=multi-user.target

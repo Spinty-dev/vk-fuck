@@ -1,0 +1,2 @@
+# Create runtime directory for vkturn socket
+d /run/vkturn 0755 root vkturn -

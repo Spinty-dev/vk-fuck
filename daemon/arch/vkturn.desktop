@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=vkturn VPN
+Comment=VPN client with TUN support
+Exec=/usr/bin/vkturn-gui
+Type=Application
+Icon=network-vpn
+Categories=Network;
+Terminal=false

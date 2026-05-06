@@ -1,0 +1,49 @@
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Build outputs
+output/
+dist/
+build/
+bin/
+
+# Go
+vkturnd
+vkturnctl
+vkturn-client
+**/vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Kotlin / JVM / Gradle
+.gradle/
+**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# Arch Linux Package Build
+daemon/arch/src/
+daemon/arch/pkg/
+daemon/arch/*.pkg.tar.zst
+daemon/arch/*.log
+
+# Logs and runtime data
+*.log
+/var/lib/vkturn/*
+/run/vkturn/*
+
+# Sensitive data
+*.jks
+*.p12
+*.key
+*.pem

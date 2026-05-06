@@ -1,0 +1,33 @@
+{
+  "log": {
+    "level": "debug",
+    "timestamp": true
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "vk-test",
+      "address": [
+        "10.20.30.1/24"
+      ],
+      "mtu": 1500,
+      "auto_route": true,
+      "strict_route": false,
+      "endpoint_independent_nat": true,
+      "sniff": true,
+      "domain_strategy": "prefer_ipv4",
+      "stack": "mixed"
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "route": {
+    "final": "direct",
+    "auto_detect_interface": true
+  }
+}

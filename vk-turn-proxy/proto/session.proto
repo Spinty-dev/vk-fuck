@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package sessionproto;
+
+option go_package = "github.com/cacggghp/vk-turn-proxy/sessionproto;sessionproto";
+
+enum ClientHelloType {
+  CLIENT_HELLO_TYPE_UNSPECIFIED = 0;
+  CLIENT_HELLO_TYPE_PROBE = 1;
+  CLIENT_HELLO_TYPE_SESSION = 2;
+  CLIENT_HELLO_TYPE_ROOM_EXCHANGE = 3;
+}
+
+enum TransportMode {
+  TRANSPORT_MODE_UNSPECIFIED = 0;
+  TRANSPORT_MODE_DATAGRAM = 1;
+  TRANSPORT_MODE_TCP = 2;
+}
+
+enum TcpTransportFlavor {
+  TCP_TRANSPORT_FLAVOR_UNSPECIFIED = 0;
+  TCP_TRANSPORT_FLAVOR_LEGACY_KCP_SMUX = 1;
+  TCP_TRANSPORT_FLAVOR_DIRECT_SMUX = 2;
+}
+
+message ClientHello {
+  uint32 version = 1;
+  ClientHelloType type = 2;
+  bytes session_id = 3;
+  uint32 stream_id = 4;
+  TransportMode requested_transport = 5;
+  repeated TransportMode supported_transports = 6;
+  repeated TcpTransportFlavor supported_tcp_flavors = 7;
+  TcpTransportFlavor preferred_tcp_flavor = 8;
+  RoomDataExchange room_exchange = 9;
+}
+
+enum RoomProvider {
+  ROOM_PROVIDER_UNSPECIFIED = 0;
+  ROOM_PROVIDER_WB_STREAM = 1;
+}
+
+message RoomDataExchange {
+  RoomProvider provider = 1;
+  string room_id = 2;
+  string display_name = 3;
+  bool e2e_enabled = 4;
+  bytes e2e_secret = 5;
+}
+
+message RoomDataAck {
+  bool accepted = 1;
+  string error = 2;
+}
+
+message ServerHello {
+  uint32 version = 1;
+  bool mu_supported = 2;
+  string error = 3;
+  bool control_heartbeat_supported = 4;
+  TransportMode selected_transport = 5;
+  repeated TransportMode supported_transports = 6;
+  repeated TcpTransportFlavor supported_tcp_flavors = 7;
+  TcpTransportFlavor selected_tcp_flavor = 8;
+}
+
+message Heartbeat {
+  uint32 version = 1;
+  int64 wall_clock_ms = 2;
+  uint32 active_streams = 3;
+  bool online = 4;
+  string proto_fingerprint = 5;
+  string session_mode = 6;
+  string control_path = 7;
+  string provider = 8;
+  TransportMode transport = 9;
+}

@@ -1,0 +1,138 @@
+# Maintainer: vkturn
+pkgname=vkturnd
+pkgver=0.1.0.20260507.013115
+pkgrel=1
+pkgdesc="vkturn VPN client with TUN support (daemon + GUI)"
+arch=('x86_64')
+url=""
+license=('MIT')
+depends=('sing-box' 'glibc' 'jre17-openjdk' 'gtk3' 'libappindicator-gtk3' 'wireguard-tools')
+optdepends=('polkit: for GUI elevation dialogs')
+makedepends=('go' 'jdk17-openjdk' 'gradle')
+provides=('vkturnd' 'vkturn-gui')
+conflicts=('vkturnd')
+install=vkturnd.install
+
+source=(
+    "vkturnd.service"
+    "vkturnd.sysusers"
+    "vkturnd.tmpfiles"
+    "vkturn.desktop"
+)
+
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+build() {
+    # Build Go daemon
+    cd "$startdir/.."
+    
+    export CGO_ENABLED=0
+    export GOFLAGS="-trimpath"
+    
+    echo "==> Building vkturnd daemon..."
+    go build -ldflags="-s -w -X main.version=$pkgver" -o "$srcdir/vkturnd" .
+    
+    echo "==> Building vkturnctl CLI..."
+    go build -ldflags="-s -w" -o "$srcdir/vkturnctl" ./cmd/vkturnctl
+    
+    echo "==> Building vkturn-client proxy..."
+    cd "$startdir/../../vk-turn-proxy/client"
+    go build -ldflags="-s -w" -o "$srcdir/vkturn-client" .
+    
+    # Build Kotlin/JVM GUI frontend
+    cd "$startdir/../../frontend"
+    
+    echo "==> Building vkturn GUI (Gradle)..."
+    # Clean and rebuild to ensure fresh binaries
+    if [[ -x ./gradlew ]]; then
+        ./gradlew clean --no-daemon 2>/dev/null || true
+        ./gradlew :composeApp:packageUberJar --no-daemon -x test --rerun-tasks
+    else
+        gradle clean --no-daemon 2>/dev/null || true
+        gradle :composeApp:packageUberJar --no-daemon -x test --rerun-tasks
+    fi
+
+    _jarpath="composeApp/build/libs/vkturn-gui.jar"
+
+    if [[ -f "$_jarpath" ]]; then
+        echo "Found JAR: $_jarpath"
+        cp "$_jarpath" "$srcdir/vkturn-gui.jar"
+    else
+        echo "WARNING: JAR not found, GUI will not be included"
+        echo "Checked paths:"
+        find composeApp/build -name '*.jar' 2>/dev/null || echo "No JARs found"
+    fi
+}
+
+package() {
+    # Daemon binaries in /usr/lib/vkturn
+    install -Dm755 "$srcdir/vkturnd" "$pkgdir/usr/lib/vkturn/vkturnd"
+    install -Dm755 "$srcdir/vkturnctl" "$pkgdir/usr/lib/vkturn/vkturnctl"
+    install -Dm755 "$srcdir/vkturn-client" "$pkgdir/usr/lib/vkturn/vkturn-client"
+    
+    # Symlinks in /usr/bin
+    mkdir -p "$pkgdir/usr/bin"
+    ln -s /usr/lib/vkturn/vkturnd "$pkgdir/usr/bin/vkturnd"
+    ln -s /usr/lib/vkturn/vkturnctl "$pkgdir/usr/bin/vkturnctl"
+    
+    # GUI JAR
+    if [[ -f "$srcdir/vkturn-gui.jar" ]]; then
+        install -Dm644 "$srcdir/vkturn-gui.jar" "$pkgdir/usr/share/vkturn/vkturn-gui.jar"
+        
+        # Wrapper script to launch the GUI
+        install -Dm755 /dev/stdin "$pkgdir/usr/bin/vkturn-gui" <<'EOF'
+#!/bin/bash
+exec java -jar /usr/share/vkturn/vkturn-gui.jar "$@"
+EOF
+        
+        # Desktop entry
+        install -Dm644 "$srcdir/vkturn.desktop" "$pkgdir/usr/share/applications/vkturn.desktop"
+    fi
+    
+    # Systemd service
+    install -Dm644 "$srcdir/vkturnd.service" "$pkgdir/usr/lib/systemd/system/vkturnd.service"
+    
+    # User/group creation via sysusers.d
+    install -Dm644 "$srcdir/vkturnd.sysusers" "$pkgdir/usr/lib/sysusers.d/vkturnd.conf"
+    
+    # Runtime directory via tmpfiles.d
+    install -Dm644 "$srcdir/vkturnd.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/vkturnd.conf"
+    
+    # Polkit rules for passwordless authentication
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/polkit-1/rules.d/50-vkturnd.rules" <<'EOF'
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.policykit.exec") == 0 ||
+        action.id == "com.vkturn.vkturnd.run") {
+        if (subject.isInGroup("vkturn")) {
+            return polkit.Result.YES;
+        }
+    }
+});
+EOF
+    
+    # Example config
+    install -Dm644 /dev/stdin "$pkgdir/etc/vkturn/example.json" <<'EOF'
+{
+  "log": { "level": "info", "timestamp": true },
+  "inbounds": [{
+    "type": "tun",
+    "tag": "tun-in",
+    "interface_name": "vk-tun",
+    "address": ["10.20.30.1/24"],
+    "mtu": 1500,
+    "auto_route": true,
+    "strict_route": false,
+    "stack": "mixed"
+  }],
+  "outbounds": [{ "type": "direct", "tag": "direct" }],
+  "route": { "final": "direct", "auto_detect_interface": true }
+}
+EOF
+    
+    # Sudoers for passwordless sudo (alternative to polkit)
+    install -Dm440 /dev/stdin "$pkgdir/etc/sudoers.d/vkturnd" <<'EOF'
+# Allow vkturn group to run daemon without password
+%vkturn ALL=(root) NOPASSWD: /usr/bin/vkturnd
+%vkturn ALL=(root) NOPASSWD: /usr/bin/vkturnctl
+EOF
+}

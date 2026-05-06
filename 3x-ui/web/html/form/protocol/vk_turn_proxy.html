@@ -1,0 +1,122 @@
+{{define "form/vkTurnProxy"}}
+<a-form :colon="false" :label-col="{ md: {span:8} }" :wrapper-col="{ md: {span:14} }">
+  <a-form-item label='Forward To'>
+    <a-select v-model="inbound.settings.forward.type" :dropdown-class-name="themeSwitcher.currentTheme">
+      <a-select-option value="wireguardInbound">Panel WireGuard inbound</a-select-option>
+      <a-select-option value="external">External UDP target</a-select-option>
+    </a-select>
+  </a-form-item>
+
+  <a-form-item v-if="inbound.settings.forward.type === 'wireguardInbound'" label='WireGuard Inbound'>
+    <a-select v-model="inbound.settings.forward.wireguardInboundId" :dropdown-class-name="themeSwitcher.currentTheme">
+      <a-select-option v-for="wgInbound in wireguardInbounds" :key="wgInbound.id" :value="wgInbound.id">
+        #[[ wgInbound.id ]] [[ wgInbound.remark || 'WireGuard' ]] : [[ wgInbound.port ]]
+      </a-select-option>
+    </a-select>
+  </a-form-item>
+
+  <template v-else>
+    <a-form-item label='Target Host'>
+      <a-input v-model.trim="inbound.settings.forward.host"></a-input>
+    </a-form-item>
+    <a-form-item label='Target Port'>
+      <a-input-number v-model.number="inbound.settings.forward.port" :min="1" :max="65535"></a-input-number>
+    </a-form-item>
+  </template>
+
+  <a-form-item label='Session Mode'>
+    <a-select v-model="inbound.settings.sessionMode" :dropdown-class-name="themeSwitcher.currentTheme">
+      <a-select-option value="auto">auto</a-select-option>
+      <a-select-option value="mainline">mainline</a-select-option>
+      <a-select-option value="mux">mux</a-select-option>
+    </a-select>
+  </a-form-item>
+
+  <a-form-item label='Local Endpoint'>
+    <a-input v-model.trim="inbound.settings.localEndpoint"></a-input>
+  </a-form-item>
+
+  <a-form-item label='WG DNS'>
+    <a-input v-model.trim="inbound.settings.wgDns"></a-input>
+  </a-form-item>
+
+  <a-form-item label='WG MTU'>
+    <a-input-number v-model.number="inbound.settings.wgMtu" :min="576" :max="1500"></a-input-number>
+  </a-form-item>
+
+  <a-form-item label='WG Allowed IPs'>
+    <a-input v-model.trim="inbound.settings.wgAllowedIps"></a-input>
+  </a-form-item>
+
+  <a-divider style="margin: 8px 0">Расширенные настройки клиента</a-divider>
+
+  <a-form-item label='Worker threads'>
+    <a-input-number v-model.number="inbound.settings.threads" :min="0" :max="256" placeholder="0 = по умолчанию"></a-input-number>
+  </a-form-item>
+
+  <a-form-item label='Размер группы кредов'>
+    <a-input-number v-model.number="inbound.settings.credsGroupSize" :min="0" :max="1024" placeholder="0 = по умолчанию"></a-input-number>
+  </a-form-item>
+
+  <a-form-item label='Транспорт'>
+    <a-select v-model="inbound.settings.useUdp" :dropdown-class-name="themeSwitcher.currentTheme">
+      <a-select-option :value="null">по умолчанию</a-select-option>
+      <a-select-option :value="false">TCP</a-select-option>
+      <a-select-option :value="true">UDP</a-select-option>
+    </a-select>
+  </a-form-item>
+
+  <a-form-item label='Обфускация'>
+    <a-select v-model="inbound.settings.noObfuscation" :dropdown-class-name="themeSwitcher.currentTheme">
+      <a-select-option :value="null">по умолчанию</a-select-option>
+      <a-select-option :value="false">Включена</a-select-option>
+      <a-select-option :value="true">Отключена</a-select-option>
+    </a-select>
+  </a-form-item>
+
+  <a-divider style="margin: 8px 0">WB Stream (LiveKit transport)</a-divider>
+
+  <a-form-item label='Включить WB Stream'>
+    <a-switch v-model="inbound.settings.wbStreamEnabled"
+              :disabled="inbound.settings.forward.type !== 'wireguardInbound'"></a-switch>
+  </a-form-item>
+
+  <template v-if="inbound.settings.wbStreamEnabled">
+    <a-form-item label='Обмен room id через VK TURN'>
+      <a-switch v-model="inbound.settings.wbStreamExchangeViaVkTurn"></a-switch>
+    </a-form-item>
+
+    <a-form-item v-if="!inbound.settings.wbStreamExchangeViaVkTurn" label='Room ID'>
+      <a-input v-model.trim="inbound.settings.wbStreamRoomId" placeholder="stream.wb.ru room id"></a-input>
+    </a-form-item>
+
+    <a-form-item label='Display name'>
+      <a-input v-model.trim="inbound.settings.wbStreamDisplayName"
+               placeholder="по умолчанию — email клиента"></a-input>
+    </a-form-item>
+
+    <a-form-item label='E2E шифрование'>
+      <a-switch v-model="inbound.settings.wbStreamE2eEnabled"></a-switch>
+    </a-form-item>
+
+    <a-form-item v-if="inbound.settings.wbStreamE2eEnabled" label='E2E secret (base64)'>
+      <a-input v-model.trim="inbound.settings.wbStreamE2eSecret"
+               placeholder="32-байтный ключ в base64"></a-input>
+    </a-form-item>
+
+    <a-alert
+      v-if="inbound.settings.wbStreamExchangeViaVkTurn"
+      type="info"
+      show-icon
+      message="Сервер не привязывается к комнате заранее — клиенты передают room id через VK TURN handshake.">
+    </a-alert>
+  </template>
+
+  <a-alert
+    v-if="inbound.settings.forward.type === 'external'"
+    type="info"
+    show-icon
+    message="Client management and wingsv export are available only when forwarding to an existing WireGuard inbound.">
+  </a-alert>
+</a-form>
+{{end}}
