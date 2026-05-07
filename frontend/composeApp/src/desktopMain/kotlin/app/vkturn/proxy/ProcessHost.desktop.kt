@@ -50,6 +50,9 @@ private class DesktopProcessHost : ProcessHost {
         scope.launch {
             if (!proc.waitFor(graceSeconds.toLong(), TimeUnit.SECONDS)) {
                 proc.destroyForcibly()
+                // Ждём фактического завершения после SIGKILL и эмитим событие
+                runCatching { proc.waitFor() }
+                exits.emit(ProcessHost.Exit(code = proc.exitValue(), killed = true))
             }
         }
     }
