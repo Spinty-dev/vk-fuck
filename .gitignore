@@ -12,9 +12,9 @@ build/
 bin/
 
 # Go
-vkturnd
-vkturnctl
-vkturn-client
+/vkturnd
+/vkturnctl
+/vkturn-client
 **/vendor/
 *.exe
 *.exe~
